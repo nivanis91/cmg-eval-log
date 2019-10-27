@@ -1,24 +1,29 @@
 export const KEEP = 'KEEP';
 export const DISCARD = 'DISCARD';
+export const NO_MEASUREMENTS_DONE_YET = 'NO_MEASUREMENTS_DONE_YET';
 
-function HasFailedDetector(realValue, allowedDiff) {
-    this.realValue = realValue;
-    this.allowedDiff = allowedDiff;
+function HasFailedDetector(referenceValue, allowedDiff) {
+	this.referenceValue = referenceValue;
+	this.allowedDiff = allowedDiff;
 	this.hasFailed = false;
-};
+	this.count = 0;
+}
 
-HasFailedDetector.prototype.addMeasurement = function (measurement) {
+HasFailedDetector.prototype.addNewMeasurement  = function(measurement) {
 	if (this.hasFailed) {
 		return;
 	}
 
-	this.hasFailed = Math.abs(measurement - this.realValue) > this.allowedDiff;
+	this.count += 1;
+	this.hasFailed = Math.abs(measurement - this.referenceValue) > this.allowedDiff;
 };
 
-HasFailedDetector.prototype.isValid = function () {
+HasFailedDetector.prototype.evalPrecision = function() {
+	if (!this.count) {
+		return NO_MEASUREMENTS_DONE_YET;
+	}
+
 	return this.hasFailed ? DISCARD : KEEP;
 };
-
-HasFailedDetector.prototype.toJSON = HasFailedDetector.prototype.isValid;
 
 export default HasFailedDetector;

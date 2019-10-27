@@ -1,108 +1,158 @@
 import {
-  default as evaluateLogFile, 
-  getLinesArrayFromString, 
-  readCurrentData,
-  addDevice,
-  Thermometer,
-  HasFailedDetector
+	evaluateLogFile,
+	getLinesArrayFromString,
+	getReferenceDataAsObjectFromArray,
+	createNewDeviceMeasurementsCollector,
+	Thermometer,
+	HasFailedDetector,
+	evaluateLogFileReducer,
 } from '../build/cmg_func';
 
 import {
-  HUMIDITY,
-  MONOXIDE, 
-  THERMOMETER
+	HUMIDITY,
+	MONOXIDE,
+	THERMOMETER,
 } from './constants';
 
 import {
-  ULTRA_PRECISE,
-  VERY_PRECISE,
-  PRECISE
+	ULTRA_PRECISE,
+	VERY_PRECISE,
+	PRECISE,
+	NO_MEASUREMENTS_DONE_YET,
 } from './types/devices/Thermometer';
 import {
-  KEEP,
-  DISCARD
+	KEEP,
+	DISCARD,
 } from './types/devices/HasFailedDetector';
 
+const sampleLogStr = 'reference 70.0 45.0 6\r\nthermometer temp-1\r\n2007-04-05T22:00 70.2';
+
 test('empty log string results in empty object', () => {
-  expect(evaluateLogFile('')).toMatchObject({});
+	expect(evaluateLogFile('')).toMatchObject({});
+});
+
+test('result object matches expected format', () => {
+	expect(evaluateLogFile(sampleLogStr)).toMatchObject({'temp-1': PRECISE});
 });
 
 test('readInitLine maps all values to object keys', () => {
-    const testInitLine = "reference 15 22.3 9"
-    const currentData = readCurrentData(testInitLine);
+	const testInitLine = ['reference', '15', '22.3', '9'];
+	const referenceDataObject = getReferenceDataAsObjectFromArray(testInitLine);
 
-    expect(Object.keys(currentData).length).toEqual(3);
+	expect(Object.keys(referenceDataObject).length).toEqual(3);
 });
 
-test('appropriate device objectis created for given name', () => {
-    const thermometer = addDevice(THERMOMETER);
-    expect(thermometer instanceof Thermometer).toEqual(true);
+test('appropriate device object is created for given name', () => {
+	const thermometer = createNewDeviceMeasurementsCollector(THERMOMETER);
 
-    const monoxideDetector = addDevice(MONOXIDE);
-    expect(monoxideDetector instanceof HasFailedDetector).toEqual(true);
+	expect(thermometer instanceof Thermometer).toEqual(true);
 
-    const humidityDetector = addDevice(HUMIDITY);
-    expect(humidityDetector instanceof HasFailedDetector).toEqual(true);
+	const monoxideDetector = createNewDeviceMeasurementsCollector(MONOXIDE);
+
+	expect(monoxideDetector instanceof HasFailedDetector).toEqual(true);
+
+	const humidityDetector = createNewDeviceMeasurementsCollector(HUMIDITY);
+
+	expect(humidityDetector instanceof HasFailedDetector).toEqual(true);
 });
 
 test('will logFile be split to array of lines (\\r\\n as lineBreak)', () => {
-  const sampleLog = 'reference 70.0 45.0 6\r\nthermometer temp-1\r\n2007-04-05T22:00 72.4';
-
-  expect(getLinesArrayFromString(sampleLog).length).toEqual(3);
+	expect(getLinesArrayFromString(sampleLogStr).length).toEqual(3);
 });
 
 test('Thermometer validation works properly', () => {
-  const thermometer1 = addDevice(THERMOMETER, 70);
-  thermometer1.addMeasurement(69.5);
-  thermometer1.addMeasurement(70.1);
-  thermometer1.addMeasurement(71.3);
-  thermometer1.addMeasurement(71.5);
-  thermometer1.addMeasurement(69.8);
-  expect(thermometer1.calcPrecision()).toEqual(ULTRA_PRECISE);
+	const thermometer1 = createNewDeviceMeasurementsCollector(THERMOMETER, 70);
 
-  const thermometer2 = addDevice(THERMOMETER, 70);
-  thermometer2.addMeasurement(69.5);
-  thermometer2.addMeasurement(70.1);
-  thermometer2.addMeasurement(64);
-  thermometer2.addMeasurement(76);
-  expect(thermometer2.calcPrecision()).toEqual(VERY_PRECISE);
+	thermometer1.addNewMeasurement(69.5);
+	thermometer1.addNewMeasurement(70.1);
+	thermometer1.addNewMeasurement(71.3);
+	thermometer1.addNewMeasurement(71.5);
+	thermometer1.addNewMeasurement(69.8);
+	expect(thermometer1.evalPrecision()).toEqual(ULTRA_PRECISE);
 
-  const thermometer3 = addDevice(THERMOMETER, 70);
-  thermometer3.addMeasurement(75);
-  thermometer3.addMeasurement(78);
-  thermometer3.addMeasurement(71);
-  thermometer3.addMeasurement(68);  
-  expect(thermometer3.calcPrecision()).toEqual(PRECISE);
+	const thermometer2 = createNewDeviceMeasurementsCollector(THERMOMETER, 70);
+
+	thermometer2.addNewMeasurement(69.5);
+	thermometer2.addNewMeasurement(70.1);
+	thermometer2.addNewMeasurement(64);
+	thermometer2.addNewMeasurement(76);
+	expect(thermometer2.evalPrecision()).toEqual(VERY_PRECISE);
+
+	const thermometer3 = createNewDeviceMeasurementsCollector(THERMOMETER, 70);
+
+	thermometer3.addNewMeasurement(75);
+	thermometer3.addNewMeasurement(78);
+	thermometer3.addNewMeasurement(71);
+	thermometer3.addNewMeasurement(68);
+	expect(thermometer3.evalPrecision()).toEqual(PRECISE);
 });
 
 test('MonoxideDetector validation works properly', () => {
-  const monoxideDetector = addDevice(MONOXIDE, 6);
-  monoxideDetector.addMeasurement(5);
-  monoxideDetector.addMeasurement(7);
-  monoxideDetector.addMeasurement(9);
-  expect(monoxideDetector.isValid()).toEqual(KEEP);
- 
-  const monoxideDetector2 = addDevice(MONOXIDE, 6);
-  monoxideDetector2.addMeasurement(2);
-  monoxideDetector2.addMeasurement(4);
-  monoxideDetector2.addMeasurement(10);
-  monoxideDetector2.addMeasurement(8);
-  monoxideDetector2.addMeasurement(6);
-  expect(monoxideDetector2.isValid()).toEqual(DISCARD);
+	const monoxideDetector = createNewDeviceMeasurementsCollector(MONOXIDE, 6);
+
+	monoxideDetector.addNewMeasurement(5);
+	monoxideDetector.addNewMeasurement(7);
+	monoxideDetector.addNewMeasurement(9);
+	expect(monoxideDetector.evalPrecision()).toEqual(KEEP);
+
+	const monoxideDetector2 = createNewDeviceMeasurementsCollector(MONOXIDE, 6);
+
+	monoxideDetector2.addNewMeasurement(2);
+	monoxideDetector2.addNewMeasurement(4);
+	monoxideDetector2.addNewMeasurement(10);
+	monoxideDetector2.addNewMeasurement(8);
+	monoxideDetector2.addNewMeasurement(6);
+	expect(monoxideDetector2.evalPrecision()).toEqual(DISCARD);
 });
 
 test('HumidityDetector validation works properly', () => {
-  const humidityDetector = addDevice(HUMIDITY, 45.0);
-  humidityDetector.addMeasurement(44.4);
-  humidityDetector.addMeasurement(43.9);
-  humidityDetector.addMeasurement(44.9);
-  humidityDetector.addMeasurement(43.8);
-  humidityDetector.addMeasurement(42.1);
-  expect(humidityDetector.isValid()).toEqual(DISCARD);
-  
-  const humidityDetector2 = addDevice(HUMIDITY, 45.0);
-  humidityDetector2.addMeasurement(45.2);
-  humidityDetector2.addMeasurement(45.3);
-  humidityDetector2.addMeasurement(45.1);
-  expect(humidityDetector2.isValid()).toEqual(KEEP);
+	const humidityDetector = createNewDeviceMeasurementsCollector(HUMIDITY, 45.0);
+
+	humidityDetector.addNewMeasurement(44.4);
+	humidityDetector.addNewMeasurement(43.9);
+	humidityDetector.addNewMeasurement(44.9);
+	humidityDetector.addNewMeasurement(43.8);
+	humidityDetector.addNewMeasurement(42.1);
+	expect(humidityDetector.evalPrecision()).toEqual(DISCARD);
+
+	const humidityDetector2 = createNewDeviceMeasurementsCollector(HUMIDITY, 45.0);
+
+	humidityDetector2.addNewMeasurement(45.2);
+	humidityDetector2.addNewMeasurement(45.3);
+	humidityDetector2.addNewMeasurement(45.1);
+	expect(humidityDetector2.evalPrecision()).toEqual(KEEP);
+});
+
+const evaluateLogFileReducerAccInitVal = {
+	result: {},
+	currentDeviceName: null,
+	referenceDataPerType: {
+		THERMOMETER: 70.0,
+	},
+};
+
+test('evalLogFileReducer adds new device to result', () => {
+	const addNewDeviceLine1 = ['thermometer', 'temp-1'];
+	const addNewDeviceLine2 = ['thermometer', 'temp-2'];
+
+	let evaluateLogFileReducerAcc = evaluateLogFileReducer(evaluateLogFileReducerAccInitVal, addNewDeviceLine1);
+
+	expect(Object.keys(evaluateLogFileReducerAcc.result).length).toEqual(1);
+
+	evaluateLogFileReducerAcc = evaluateLogFileReducer(evaluateLogFileReducerAccInitVal, addNewDeviceLine2);
+	expect(Object.keys(evaluateLogFileReducerAcc.result).length).toEqual(2);
+});
+
+test('evalLogFileReducer adds new measurement for given device', () => {
+	const deviceType = THERMOMETER;
+	const deviceName = 'temp-1';
+	const addNewDeviceLine = [deviceType, deviceName];
+	const addNewMeasurementLine = ['2007-04-05T22:00', '70.2'];
+
+	let evaluateLogFileReducerAcc = evaluateLogFileReducer(evaluateLogFileReducerAccInitVal, addNewDeviceLine);
+
+	expect(evaluateLogFileReducerAcc.result[deviceName].evalPrecision()).toEqual(NO_MEASUREMENTS_DONE_YET);
+
+	evaluateLogFileReducerAcc = evaluateLogFileReducer(evaluateLogFileReducerAcc, addNewMeasurementLine);
+	expect(evaluateLogFileReducerAcc.result[deviceName].evalPrecision()).not.toEqual(NO_MEASUREMENTS_DONE_YET);
 });

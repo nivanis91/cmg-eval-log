@@ -1,11 +1,12 @@
 {
-  "name": "CMG",
+  "name": "cmg-eval-log",
   "version": "1.0.0",
   "description": "",
   "main": "src/main.js",
   "scripts": {
     "test": "jest",
-    "build": "webpack"
+    "build": "webpack",
+    "lint": "eslint ./src"
   },
   "keywords": [],
   "author": "",
@@ -15,6 +16,7 @@
     "@babel/plugin-transform-modules-commonjs": "^7.6.0",
     "@babel/preset-env": "^7.6.2",
     "babel-loader": "^8.0.6",
+    "eslint": "^6.5.1",
     "jest": "^24.9.0",
     "webpack": "^4.41.0",
     "webpack-cli": "^3.3.9"

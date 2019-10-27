@@ -1,75 +1,93 @@
 import Thermometer from './types/devices/Thermometer';
 import HasFailedDetector from './types/devices/HasFailedDetector';
 import {
-    HUMIDITY,
-    MONOXIDE, 
-    THERMOMETER
+	HUMIDITY,
+	MONOXIDE,
+	THERMOMETER,
+	UNKNOWN_DEVICE,
 } from './constants';
 
-export function readCurrentData(initLine) {
-    const elems = initLine.split(' ');
+export function getReferenceDataAsObjectFromArray(referenceValuesArray) {
+	if (referenceValuesArray[0] === 'reference') {
+		return {
+			[THERMOMETER]: referenceValuesArray[1],
+			[HUMIDITY]: referenceValuesArray[2],
+			[MONOXIDE]: referenceValuesArray[3],
+		};
+	}
 
-    return {
-        [THERMOMETER]: elems[1],
-        [HUMIDITY]: elems[2],
-        [MONOXIDE]: elems[3],
-    };
-};
-
-export function getLinesArrayFromString(logStr) {
-    return logStr.split('\r\n');
-};
-
-export function addDevice(deviceName, currentValue) {
-    switch (deviceName) {
-        case THERMOMETER:
-            return new Thermometer(currentValue);
-        case HUMIDITY:
-            return new HasFailedDetector(currentValue, 1);
-        case MONOXIDE:
-            return new HasFailedDetector(currentValue, 3);
-        default:
-            break;
-    }
+	return {};
 }
 
-var devices = [THERMOMETER, HUMIDITY, MONOXIDE];
+export function getLinesArrayFromString(logStr) {
+	const linesArray = logStr.split('\r\n');
 
-function evaluateLogFile(logStr) {
-    if(!logStr) {
-        return {};
-    }
-    
-    const linesArray = getLinesArrayFromString(logStr);
-    
-    const currentData = readCurrentData(linesArray[0]);
-    linesArray.shift();
+	return linesArray.reduce((acc, line) => {
+		acc.push(line.split(' '));
 
-    let result = {};
-    let currentDevice = null;
+		return acc;
+	}, []);
+}
 
-    linesArray.forEach(line => {
-        const lineElements = line.split(' ');
+export function createNewDeviceMeasurementsCollector(deviceType, referenceValue) {
+	switch (deviceType) {
+		case THERMOMETER:
+			return new Thermometer(referenceValue);
+		case HUMIDITY:
+			return new HasFailedDetector(referenceValue, 1);
+		case MONOXIDE:
+			return new HasFailedDetector(referenceValue, 3);
+		default:
+			break;
+	}
+}
 
-        if (devices.indexOf(lineElements[0]) > -1) {
-            currentDevice = lineElements[1];
+const deviceTypesList = [THERMOMETER, HUMIDITY, MONOXIDE];
 
-            // prevent overwriting in case the same device appears later in log
-            if (!result[currentDevice]) {
-                const deviceName = lineElements[0];
-                const currentValue = currentData[deviceName];
+export function evaluateLogFile(logStr, refData) {
+	if (!logStr) {
+		return {};
+	}
 
-                result[currentDevice] = addDevice(deviceName, currentValue);
-            }
+	const logFileLinesArray = getLinesArrayFromString(logStr);
 
-            return;
-        }
-    
-        result[currentDevice].addMeasurement(lineElements[1]);
-    });
+	const evaluateLogFileReducerAccInitVal = {
+		result: {},
+		currentDeviceName: null,
+		referenceDataPerType: refData || getReferenceDataAsObjectFromArray(logFileLinesArray[0])
+	};
 
-    return result;
-};
+	const logFileLinesReduced = logFileLinesArray.reduce(evaluateLogFileReducer, evaluateLogFileReducerAccInitVal);
+
+	return Object.keys(logFileLinesReduced.result).reduce((acc, key) => {
+		acc[key] = logFileLinesReduced.result[key].evalPrecision();
+
+		return acc;
+	}, {});
+}
+
+export function evaluateLogFileReducer({result, currentDeviceName, referenceDataPerType}, lineArray) {
+	if (deviceTypesList.includes(lineArray[0])) {
+		currentDeviceName = lineArray[1];
+
+		// prevent overwriting in case the same device appeared earlier in the log
+		if (!result[currentDeviceName]) {
+			const deviceType = lineArray[0];
+			const referenceValue = referenceDataPerType[deviceType];
+
+			result[currentDeviceName] = createNewDeviceMeasurementsCollector(deviceType, referenceValue);
+		}
+	} else if (currentDeviceName &&
+              result[currentDeviceName] &&
+              currentDeviceName !== UNKNOWN_DEVICE) {
+		const measurementValue = lineArray[1];
+
+		result[currentDeviceName].addNewMeasurement(measurementValue);
+	} else {
+		currentDeviceName = UNKNOWN_DEVICE;
+	}
+
+	return {result, currentDeviceName, referenceDataPerType};
+}
 
 export {Thermometer, HasFailedDetector};
-export default evaluateLogFile;
