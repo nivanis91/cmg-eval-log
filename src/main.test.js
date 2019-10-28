@@ -35,7 +35,7 @@ test('result object matches expected format', () => {
 	expect(evaluateLogFile(sampleLogStr)).toMatchObject({'temp-1': PRECISE});
 });
 
-test('readInitLine maps all values to object keys', () => {
+test('ref values are mapped to object keys', () => {
 	const testInitLine = ['reference', '15', '22.3', '9'];
 	const referenceDataObject = getReferenceDataAsObjectFromArray(testInitLine);
 
@@ -150,7 +150,6 @@ test('evalLogFileReducer adds new measurement for given device', () => {
 	const addNewMeasurementLine = ['2007-04-05T22:00', '70.2'];
 
 	let evaluateLogFileReducerAcc = evaluateLogFileReducer(evaluateLogFileReducerAccInitVal, addNewDeviceLine);
-
 	expect(evaluateLogFileReducerAcc.result[deviceName].evalPrecision()).toEqual(NO_MEASUREMENTS_DONE_YET);
 
 	evaluateLogFileReducerAcc = evaluateLogFileReducer(evaluateLogFileReducerAcc, addNewMeasurementLine);

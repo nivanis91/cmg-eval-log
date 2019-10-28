@@ -7,12 +7,18 @@ import {
 	UNKNOWN_DEVICE,
 } from './constants';
 
+const refValuesOrder = {
+	[THERMOMETER]: 1,
+	[HUMIDITY]: 2,
+	[MONOXIDE]: 3,
+}
+
 export function getReferenceDataAsObjectFromArray(referenceValuesArray) {
 	if (referenceValuesArray[0] === 'reference') {
 		return {
-			[THERMOMETER]: referenceValuesArray[1],
-			[HUMIDITY]: referenceValuesArray[2],
-			[MONOXIDE]: referenceValuesArray[3],
+			[THERMOMETER]: referenceValuesArray[refValuesOrder[THERMOMETER]],
+			[HUMIDITY]: referenceValuesArray[refValuesOrder[HUMIDITY]],
+			[MONOXIDE]: referenceValuesArray[refValuesOrder[MONOXIDE]],
 		};
 	}
 
